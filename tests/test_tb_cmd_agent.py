@@ -6,9 +6,14 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_REPO = Path(__file__).resolve().parents[3]
+_EXT = _REPO / "extensions" / "agent"
+for _p in (_REPO, _EXT):
+    _s = str(_p)
+    if _s not in sys.path:
+        sys.path.insert(0, _s)
 
-from lib.tb_cmds import agent as agent_cmd  # noqa: E402
+from tb_cmds import agent as agent_cmd  # noqa: E402
 
 
 class AgentRunConfigTests(unittest.TestCase):
@@ -23,11 +28,11 @@ class AgentRunConfigTests(unittest.TestCase):
         )
 
     def test_uses_dashboard_default_steps_when_flag_omitted(self):
-        with mock.patch("lib.tb_cmds.agent.dashboard_config.load", return_value={"agent_max_steps": 20}), mock.patch(
-            "lib.tb_cmds.agent.agent_store.get_agent",
+        with mock.patch("tb_cmds.agent.dashboard_config.load", return_value={"agent_max_steps": 20}), mock.patch(
+            "tb_cmds.agent.agent_store.get_agent",
             return_value={"name": "minimax", "model": "MiniMax-M2.7", "api_key": "k", "wire_api": "openai-chat"},
         ), mock.patch(
-            "lib.tb_cmds.agent.agent_runner.run_agent",
+            "tb_cmds.agent.agent_runner.run_agent",
             return_value={"message": "ok"},
         ) as run_agent:
             rc = agent_cmd.cmd_agent(self._args("check", "panes"))
@@ -35,11 +40,11 @@ class AgentRunConfigTests(unittest.TestCase):
         self.assertEqual(run_agent.call_args.kwargs["max_steps"], 20)
 
     def test_steps_flag_overrides_dashboard_default(self):
-        with mock.patch("lib.tb_cmds.agent.dashboard_config.load", return_value={"agent_max_steps": 20}), mock.patch(
-            "lib.tb_cmds.agent.agent_store.get_agent",
+        with mock.patch("tb_cmds.agent.dashboard_config.load", return_value={"agent_max_steps": 20}), mock.patch(
+            "tb_cmds.agent.agent_store.get_agent",
             return_value={"name": "minimax", "model": "MiniMax-M2.7", "api_key": "k", "wire_api": "openai-chat"},
         ), mock.patch(
-            "lib.tb_cmds.agent.agent_runner.run_agent",
+            "tb_cmds.agent.agent_runner.run_agent",
             return_value={"message": "ok"},
         ) as run_agent:
             rc = agent_cmd.cmd_agent(self._args("--steps", "7", "check", "panes"))

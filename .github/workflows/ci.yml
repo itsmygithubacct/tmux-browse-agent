@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out extension
+        uses: actions/checkout@v4
+        with:
+          path: extension
+
+      - name: Check out tmux-browse core at pinned version
+        uses: actions/checkout@v4
+        with:
+          repository: itsmygithubacct/tmux-browse
+          # Keep this pinned to the ``min_tmux_browse`` version from
+          # manifest.json. When core bumps, we bump the ref here AFTER
+          # confirming tests still pass against the new core.
+          ref: v0.7.0.4
+          path: core
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Run extension tests
+        working-directory: extension
+        env:
+          PYTHONPATH: ${{ github.workspace }}/core:${{ github.workspace }}/extension
+        run: python3 -m unittest discover tests

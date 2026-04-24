@@ -233,7 +233,7 @@ class SandboxModeTests(_IsolatedStateMixin, unittest.TestCase):
     def test_docker_sandbox_persists_when_docker_unavailable(self):
         # save_agent does not consult docker_sandbox.SUPPORTED — config
         # persistence is independent of transient host capability.
-        with mock.patch("lib.docker_sandbox.SUPPORTED", False):
+        with mock.patch("sandbox.SUPPORTED", False):
             agent_store.save_agent("opus", api_key="sk-x", sandbox="docker")
             got = agent_store.get_agent("opus")
         self.assertEqual(got["sandbox"], "docker")

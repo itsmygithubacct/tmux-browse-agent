@@ -36,9 +36,14 @@ from lib.config import (  # noqa: F401
     ensure_dirs,
 )
 
-# --- sandbox + session logging (shared primitives) -------------------
+# --- session logging (shared core primitive) ------------------------
 
-from lib import docker_sandbox, session_logs  # noqa: F401
+from lib import session_logs  # noqa: F401
+
+# Docker sandboxing lives in the ``tmux-browse-sandbox`` extension. We
+# don't import it here — the loader prepends every enabled extension
+# to ``sys.path`` before any ``load_one()`` fires, so agent modules
+# that want sandboxing just do ``import sandbox`` directly.
 
 # --- session / target / errors ---------------------------------------
 

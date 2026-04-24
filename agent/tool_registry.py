@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from lib import docker_sandbox
+import sandbox as docker_sandbox
 
 
 READ_FILE_MAX_BYTES = 64 * 1024

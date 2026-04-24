@@ -152,7 +152,7 @@ class DockerSandboxSchedulerTests(unittest.TestCase):
              mock.patch("agent.scheduler.agent_runner.run_agent",
                         return_value={"message": "ok"}), \
              mock.patch("agent.scheduler.agent_workflow_runs.record_result"), \
-             mock.patch("lib.docker_sandbox.Sandbox") as sandbox_cls:
+             mock.patch("sandbox.Sandbox") as sandbox_cls:
             s._run_workflow("opus", 0, "do work", 60)
         sandbox_cls.assert_not_called()
 

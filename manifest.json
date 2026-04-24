@@ -2,7 +2,7 @@
     "name": "agent",
     "version": "0.7.2",
     "module": "agent",
-    "min_tmux_browse": "0.7.1",
+    "min_tmux_browse": "0.7.1.3",
     "routes_entry": "server.routes:register",
     "cli_entry": "tb_cmds.agent:register_verb",
     "ui_blocks_path": "ui_blocks.html",

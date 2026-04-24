@@ -19,7 +19,7 @@ from . import (
     run_index as agent_run_index,
     tool_registry as agent_tool_registry,
 )
-from lib import docker_sandbox
+import sandbox as docker_sandbox
 from .runs import (
     STATUS_COMPLETED,
     STATUS_FAILED,

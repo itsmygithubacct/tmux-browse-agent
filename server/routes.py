@@ -39,8 +39,9 @@ from agent import (
 )
 from agent.modes import cycle as _cycle_mode, work as _work_mode
 from lib import (
-    config, docker_sandbox, sessions, ttyd,
+    config, sessions, ttyd,
 )
+import sandbox as docker_sandbox
 from lib.errors import TBError, UsageError
 
 from lib.extensions import Registration

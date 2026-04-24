@@ -1,0 +1,211 @@
+<!-- {{config_agent}} -->
+<details style="margin-top:0.6rem">
+    <summary class="dim" style="cursor:pointer;font-size:0.85rem">Agent Settings</summary>
+    <div style="display:grid;gap:0.5rem;margin-top:0.5rem">
+        <details class="config-card">
+            <summary class="config-card-title" style="cursor:pointer">Event Hooks</summary>
+            <div style="margin-top:0.4rem">
+                <div class="dim" style="font-size:0.78rem;margin-bottom:0.5rem">
+                    Automatic actions when agent events occur. Per-agent overrides take precedence.
+                </div>
+                <div id="hooks-editor"></div>
+                <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap">
+                    <button class="btn green" id="hooks-save-btn" type="button">Save Hooks</button>
+                    <button class="btn" id="hooks-reset-btn" type="button">Reset to Defaults</button>
+                    <span class="dim" id="hooks-status" style="font-size:0.82rem"></span>
+                </div>
+            </div>
+        </details>
+        <details class="config-card">
+            <summary class="config-card-title" style="cursor:pointer">Conductor</summary>
+            <div style="margin-top:0.4rem">
+                <div class="dim" style="font-size:0.78rem;margin-bottom:0.5rem">
+                    Composite rules above event hooks. Supports rolling-window counters
+                    (three failures in 1h) and cross-agent routing. See
+                    <code>plans/plan_conductor_layer.md</code> in the research tree for
+                    the rule DSL.
+                </div>
+                <textarea id="conductor-editor" rows="10" spellcheck="false"
+                          style="width:100%;box-sizing:border-box;background:var(--surface);color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:0.4rem;font-family:inherit;font-size:0.82rem;min-height:7rem"></textarea>
+                <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;align-items:center">
+                    <button class="btn green" id="conductor-save-btn" type="button">Save Rules</button>
+                    <button class="btn" id="conductor-reload-btn" type="button">Reload</button>
+                    <span class="dim" id="conductor-status" style="font-size:0.82rem"></span>
+                </div>
+            </div>
+        </details>
+        <details class="config-card">
+            <summary class="config-card-title" style="cursor:pointer">Agent</summary>
+            <div style="margin-top:0.4rem">
+                <label class="field">
+                    <span>Configured agent</span>
+                    <select id="cfg-agent-existing"></select>
+                </label>
+                <label class="field">
+                    <span>Preset</span>
+                    <select id="cfg-agent-preset"></select>
+                </label>
+                <label class="field">
+                    <span>Name</span>
+                    <input type="text" id="cfg-agent-name" placeholder="gpt" />
+                </label>
+                <label class="field">
+                    <span>Provider</span>
+                    <input type="text" id="cfg-agent-provider" placeholder="openai" />
+                </label>
+                <label class="field">
+                    <span>Model</span>
+                    <input type="text" id="cfg-agent-model" placeholder="gpt-5.4" />
+                </label>
+                <label class="field">
+                    <span>Base URL</span>
+                    <input type="url" id="cfg-agent-base-url" placeholder="https://api.openai.com/v1" />
+                </label>
+                <label class="field">
+                    <span>Wire API</span>
+                    <select id="cfg-agent-wire-api">
+                        <option value="openai-chat">openai-chat</option>
+                        <option value="anthropic-messages">anthropic-messages</option>
+                    </select>
+                </label>
+                <label class="field">
+                    <span>Sandbox</span>
+                    <select id="cfg-agent-sandbox">
+                        <option value="host">host</option>
+                        <option value="worktree">worktree</option>
+                        <option value="docker">docker</option>
+                    </select>
+                </label>
+                <label class="field">
+                    <span>Per-run token budget (0 = unlimited)</span>
+                    <input type="number" id="cfg-agent-token-budget" min="0" step="1000" />
+                </label>
+                <label class="field">
+                    <span>Daily token budget (0 = unlimited)</span>
+                    <input type="number" id="cfg-agent-daily-budget" min="0" step="10000" />
+                </label>
+                <label class="field">
+                    <span>API key</span>
+                    <input type="password" id="cfg-agent-api-key" placeholder="Leave blank to keep existing key" />
+                </label>
+                <div class="hot-editor-actions">
+                    <button class="btn green" id="cfg-agent-save-btn" type="button">Save Agent</button>
+                    <button class="btn blue" id="cfg-agent-reload-btn" type="button">Reload Agents</button>
+                    <button class="btn red" id="cfg-agent-remove-btn" type="button">Remove Agent</button>
+                </div>
+                <div class="dim config-card-note" id="cfg-agent-summary">
+                    Agents are stored separately from dashboard-config.json.
+                </div>
+                <div class="dim" id="cfg-agent-status">
+                    Load a preset or existing agent, then save.
+                </div>
+            </div>
+        </details>
+    </div>
+</details>
+<!-- {{agents_section}} -->
+<details id="agents-wrap" class="config-pane" hidden>
+    <summary>Agents (<span id="agents-count">0</span>)</summary>
+    <div class="config-body">
+        <div id="agents-pane" class="agent-grid"></div>
+        <div id="cost-summary" class="dim" style="margin-top:0.6rem;font-size:0.82rem"></div>
+        <details id="runs-wrap" style="margin-top:0.6rem">
+            <summary class="dim" style="cursor:pointer;font-size:0.85rem">Runs (<span id="runs-count">0</span>)</summary>
+            <div style="margin-top:0.4rem">
+                <div class="runs-search-bar">
+                    <input type="text" id="runs-search-q" placeholder="Search prompts and messages..." />
+                    <select id="runs-filter-agent"><option value="">All agents</option></select>
+                    <select id="runs-filter-status">
+                        <option value="">All statuses</option>
+                        <option value="run_completed">Completed</option>
+                        <option value="run_failed">Failed</option>
+                        <option value="run_rate_limited">Rate Limited</option>
+                    </select>
+                    <select id="runs-filter-origin">
+                        <option value="">All origins</option>
+                        <option value="cli">CLI</option>
+                        <option value="repl">REPL</option>
+                        <option value="scheduler">Scheduler</option>
+                        <option value="conductor">Conductor</option>
+                        <option value="cycle-plan">Cycle (plan)</option>
+                        <option value="cycle-exec">Cycle (exec)</option>
+                        <option value="work">Work</option>
+                        <option value="retry">Retry</option>
+                    </select>
+                    <button class="btn blue" id="runs-search-btn" type="button">Search</button>
+                </div>
+                <div id="runs-pane" class="agent-grid"></div>
+            </div>
+        </details>
+        <details id="tasks-wrap" style="margin-top:0.4rem">
+            <summary class="dim" style="cursor:pointer;font-size:0.85rem">Tasks (<span id="tasks-count">0</span>)</summary>
+            <div style="margin-top:0.4rem">
+                <div class="task-create-bar">
+                    <input type="text" id="task-title" placeholder="Task title" />
+                    <input type="text" id="task-repo" placeholder="Repo path (e.g. ~/myrepo)" />
+                    <select id="task-agent"><option value="">No agent</option></select>
+                    <button class="btn green" id="task-create-btn" type="button">Create</button>
+                </div>
+                <div id="tasks-pane" class="agent-grid"></div>
+            </div>
+        </details>
+    </div>
+</details>
+<!-- {{notifications_section}} -->
+<details id="notifications-wrap" class="config-pane" hidden>
+    <summary>Notifications (<span id="notifications-count">0</span>)</summary>
+    <div class="config-body">
+        <div id="notifications-pane" class="agent-grid"></div>
+    </div>
+</details>
+<!-- {{agent_modals}} -->
+<div id="agent-steps-modal" class="modal-backdrop" hidden>
+    <div class="modal-card hot-modal" role="dialog" aria-modal="true" aria-labelledby="agent-steps-modal-title">
+        <div class="modal-head">
+            <div>
+                <div class="modal-eyebrow">Agent Transcript</div>
+                <h2 id="agent-steps-modal-title">Agent Steps</h2>
+            </div>
+            <button class="btn" id="agent-steps-close-btn" title="close the step viewer">Close</button>
+        </div>
+        <div class="agent-steps-grid">
+            <div class="hot-slot-list" id="agent-steps-list"></div>
+            <div class="agent-steps-detail" id="agent-steps-detail"></div>
+        </div>
+    </div>
+</div>
+<div id="workflow-modal" class="modal-backdrop" hidden>
+    <div class="modal-card hot-modal" role="dialog" aria-modal="true" aria-labelledby="workflow-modal-title">
+        <div class="modal-head">
+            <div>
+                <div class="modal-eyebrow">Conversation Mode</div>
+                <h2 id="workflow-modal-title">Agent Workflows</h2>
+            </div>
+            <button class="btn" id="workflow-close-btn" title="close the workflow editor">Close</button>
+        </div>
+        <div class="hot-editor-grid">
+            <div class="hot-slot-list" id="workflow-slot-list"></div>
+            <div class="hot-editor-form">
+                <label class="field">
+                    <span>Workflow name</span>
+                    <input type="text" id="workflow-name" maxlength="80" placeholder="Morning sweep" />
+                </label>
+                <label class="field">
+                    <span>Prompt</span>
+                    <textarea id="workflow-prompt" rows="6" placeholder="tell me what changed in the panes since the last run"></textarea>
+                </label>
+                <label class="field">
+                    <span>Run every seconds</span>
+                    <input type="number" id="workflow-interval" min="5" max="86400" step="5" value="300" />
+                </label>
+                <div class="hot-editor-actions">
+                    <button class="btn green" id="workflow-save-btn">Save</button>
+                    <button class="btn red" id="workflow-clear-btn">Clear</button>
+                </div>
+                <div class="dim hot-editor-hint">
+                    Workflows are saved server-side and run in the conversation REPL pane when the workflow switch is enabled. Each workflow sends its prompt into the agent REPL on its own interval.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

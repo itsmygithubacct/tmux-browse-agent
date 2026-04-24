@@ -55,7 +55,8 @@ from lib.errors import (  # noqa: F401
 )
 
 # --- agent-adjacent core modules -------------------------------------
-# tasks.py + worktrees.py stay in core because a task with an
-# ``agent`` field is just data; the agent extension populates/consumes
-# that field without core needing to know what an agent is.
-from lib import tasks as _tasks, worktrees as _worktrees  # noqa: F401
+# tasks.py stays in core because a task with an ``agent`` field is
+# just data; the agent extension populates/consumes that field
+# without core needing to know what an agent is.
+from lib import tasks as _tasks  # noqa: F401
+# worktrees moved into this extension as ``agent.worktrees``.

@@ -1,0 +1,29 @@
+{
+    "name": "agent",
+    "version": "0.7.0.4",
+    "module": "agent",
+    "min_tmux_browse": "0.7.0.4",
+    "routes_entry": "server.routes:register",
+    "cli_entry": "tb_cmds.agent:register_verb",
+    "ui_blocks_path": "ui_blocks.html",
+    "static_dir": "static",
+    "startup_entry": "startup:register",
+    "state_paths": [
+        "agents.json",
+        "agent-secrets.json",
+        "agent-hooks.json",
+        "agent-workflows.json",
+        "agent-notifications.jsonl",
+        "agent-conductor.json",
+        "agent-conductor.jsonl",
+        "agent-costs.jsonl",
+        "agent-run-index.jsonl",
+        "agent-scheduler.lock",
+        "agent-logs/",
+        "agent-conversations/",
+        "agent-contexts/",
+        "agent-kb/",
+        "agent-cycle/",
+        "agent-work/"
+    ]
+}

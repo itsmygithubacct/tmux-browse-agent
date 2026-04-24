@@ -1,17 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.7.1-agent — 2026-04-24
 
-- Extracted from `tmux-browse` core at v0.7.0.4 into its own
-  repository. Pre-split history lives in the [core
-  repo](https://github.com/itsmygithubacct/tmux-browse) under
-  `lib/agent_*.py` — `git log` in this repo reaches back to the
-  E1 phase where the relocation landed.
+First release with a real compatibility contract. Pinned against
+`tmux-browse >= 0.7.1` (the core release that lands the extension
+loader, the submodule hook at `extensions/agent/`, and the opt-in
+default). Earlier carves targeting v0.7.0.4 were cut before core had
+`lib.extensions`; don't use them.
 
-## v0.7.0.4-agent — 2026-04-24
-
-Initial carve. Matches `tmux-browse` core v0.7.0.4. Contents are
-the E1 end-state from core:
+Contents match core's E1 end-state (no functional change from the
+v0.7.0.4-agent carve):
 
 - Agent CRUD + secrets store (host, worktree, docker sandboxes).
 - Agent modes: `cycle` (plan-then-execute) and `work` (file-backed
@@ -26,5 +24,17 @@ the E1 end-state from core:
 - Dashboard UI: Agent Settings config card, Agents / Runs / Tasks
   sections, transcript + workflow modals.
 
-Compatible with `tmux-browse >= 0.7.0.4`. Declared in
-`manifest.json` as `min_tmux_browse`.
+### CI
+
+GitHub Actions checks out `itsmygithubacct/tmux-browse` at tag
+`v0.7.1` into a sibling directory and runs the extension test
+suite with both trees on `PYTHONPATH`. That's the same setup the
+`README.md` walks users through for local runs.
+
+### Prior history
+
+`git log` in this repo reaches back through the core repo's E1
+phases (the relocation of `lib/agent_*.py` into `extensions/agent/`).
+Anything older than those commits — the original
+`lib/agent_*.py` authoring — lives in the core repo's history under
+`git log --follow lib/agent_*.py` up to its v0.7.0.4 tag.

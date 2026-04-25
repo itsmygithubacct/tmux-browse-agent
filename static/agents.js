@@ -807,7 +807,7 @@ function renderPaneAdmin() {
                     onclick: () => { toggleHidden(name); } },
                     state.hidden.has(name) ? "Unhide" : "Hide"),
                 el("a", { class: "btn", target: "_blank", rel: "noopener",
-                    href: `/api/session/log?session=${encodeURIComponent(name)}&lines=2000` }, "Log"),
+                    href: `/api/session/log?session=${encodeURIComponent(name)}&lines=2000&html=1` }, "Log"),
                 el("button", { class: "btn blue", type: "button",
                     onclick: () => openHotButtons(name) }, "Hot Buttons"),
                 el("button", { class: "btn orange", type: "button",

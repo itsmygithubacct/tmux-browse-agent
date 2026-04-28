@@ -553,6 +553,32 @@ def _h_agent_work_stop(handler, _parsed: ParseResult, body: dict) -> None:
     handler._send_json({"ok": True, "stop_requested": True})
 
 
+def _h_agent_cli_get(handler, _parsed: ParseResult) -> None:
+    """GET /api/agent-cli — list registry entries with installed/hook state."""
+    rows: list[dict] = []
+    for cli in agent_cli_registry.load_registry():
+        installed = agent_cli_launch.is_installed(cli)
+        hooks_supported = cli.hooks is not None
+        hook_installed = False
+        if hooks_supported:
+            try:
+                hook_installed = agent_cli_hooks.is_installed(cli.name)
+            except Exception:
+                hook_installed = False
+        rows.append({
+            "name": cli.name,
+            "binary": cli.binary,
+            "label": cli.label or cli.name,
+            "aliases": list(cli.aliases),
+            "installed": installed,
+            "hooks_supported": hooks_supported,
+            "hook_installed": hook_installed,
+            "host_only": cli.host_only,
+            "install_hint": cli.install_hint,
+        })
+    handler._send_json({"ok": True, "agents": rows})
+
+
 def _h_agent_cli_install_hooks(handler, _parsed: ParseResult, body: dict) -> None:
     """POST /api/agent-cli/install-hooks — write status hooks into the agent's
     settings.json. Idempotent."""
@@ -627,6 +653,7 @@ def register() -> Registration:
         "/api/agent-conductor": _h_agent_conductor_get,
         "/api/agent-conductor-events": _h_agent_conductor_events,
         "/api/agent-repl-context": _h_agent_repl_context,
+        "/api/agent-cli": _h_agent_cli_get,
     })
     reg.post_routes.update({
         "/api/agents": _h_agents_post,

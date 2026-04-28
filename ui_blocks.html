@@ -101,6 +101,27 @@
                 </div>
             </div>
         </details>
+        <details class="config-card">
+            <summary class="config-card-title" style="cursor:pointer">Launch CLI Agent</summary>
+            <div style="margin-top:0.4rem">
+                <div class="dim" style="font-size:0.78rem;margin-bottom:0.5rem">
+                    Spawn an external CLI agent (Claude Code, Codex, OpenCode, ...) in a new
+                    tmux session. The session appears in the dashboard like any other pane;
+                    status comes from settings.json hooks where supported.
+                </div>
+                <div id="cli-agents-list" class="dim" style="font-size:0.82rem">Loading...</div>
+                <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap;align-items:center">
+                    <select id="cli-agents-select" style="min-width:12rem"></select>
+                    <input type="text" id="cli-agents-cwd" placeholder="cwd (default: project dir)"
+                           style="flex:1;min-width:14rem" />
+                    <label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.82rem">
+                        <input type="checkbox" id="cli-agents-yolo" /> yolo
+                    </label>
+                    <button class="btn green" id="cli-agents-launch-btn" type="button">Launch</button>
+                </div>
+                <div class="dim" id="cli-agents-status" style="font-size:0.82rem;margin-top:0.4rem"></div>
+            </div>
+        </details>
     </div>
 </details>
 <!-- {{agents_section}} -->

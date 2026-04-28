@@ -23,6 +23,8 @@ from urllib.parse import ParseResult, parse_qs
 
 from agent import (
     budgets as agent_budgets,
+    cli_launch as agent_cli_launch,
+    cli_registry as agent_cli_registry,
     conductor as agent_conductor,
     costs as agent_costs,
     hooks as agent_hooks,
@@ -550,6 +552,36 @@ def _h_agent_work_stop(handler, _parsed: ParseResult, body: dict) -> None:
     handler._send_json({"ok": True, "stop_requested": True})
 
 
+def _h_agent_cli_launch(handler, _parsed: ParseResult, body: dict) -> None:
+    """POST /api/agent-cli/launch — spawn a CLI agent in a new tmux session."""
+    if not handler._check_unlock():
+        return
+    name = (body.get("name") or "").strip().lower()
+    if not name:
+        handler._send_json({"ok": False, "error": "missing 'name'"}, status=400)
+        return
+    instruction = body.get("instruction")
+    if instruction is not None and not isinstance(instruction, str):
+        handler._send_json({"ok": False, "error": "instruction must be a string"}, status=400)
+        return
+    cwd = body.get("cwd")
+    if cwd is not None and not isinstance(cwd, str):
+        handler._send_json({"ok": False, "error": "cwd must be a string"}, status=400)
+        return
+    yolo = bool(body.get("yolo", False))
+
+    result = agent_cli_launch.launch(
+        name,
+        cwd=cwd or None,
+        instruction=instruction or None,
+        yolo=yolo,
+    )
+    status = 200 if result.get("ok") else 400
+    if result.get("install_required"):
+        status = 409  # conflict — host can't run this without operator action
+    handler._send_json(result, status=status)
+
+
 def register() -> Registration:
     """Entry point the core loader calls at server start."""
     reg = Registration(name="agent")
@@ -580,5 +612,6 @@ def register() -> Registration:
         "/api/agent-work/stop": _h_agent_work_stop,
         "/api/agent-conversation": _h_agent_conversation_open,
         "/api/agent-conversation-fork": _h_agent_conversation_fork,
+        "/api/agent-cli/launch": _h_agent_cli_launch,
     })
     return reg

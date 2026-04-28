@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 
 from agent import (
+    cli_launch as agent_cli_launch,
+    cli_registry as agent_cli_registry,
     kb as agent_kb,
     repl_context as agent_repl_context,
     runner as agent_runner,
@@ -114,6 +116,37 @@ def _parse_cycle(argv: list[str]) -> argparse.Namespace:
                    help="execute-phase step budget")
     p.add_argument("--timeout", type=float, default=90.0)
     return p.parse_args(argv)
+
+
+def _parse_launch(argv: list[str]) -> argparse.Namespace:
+    p = _Parser(prog="tb agent launch")
+    p.add_argument("name", help="CLI agent name (claude, codex, opencode, ...)")
+    p.add_argument("--cwd", default=None,
+                   help="working directory for the new tmux session")
+    p.add_argument("--instruction", default=None,
+                   help="custom system prompt / developer instructions")
+    p.add_argument("--yolo", action="store_true",
+                   help="enable the agent's auto-approve mode")
+    return p.parse_args(argv)
+
+
+def _run_launch(ns: argparse.Namespace, json_output: bool, quiet: bool) -> int:
+    result = agent_cli_launch.launch(
+        ns.name, cwd=ns.cwd, instruction=ns.instruction, yolo=ns.yolo,
+    )
+    if json_output:
+        output.emit_json(result)
+        return 0 if result.get("ok") else 1
+    if not result.get("ok"):
+        msg = result.get("error", "launch failed")
+        if result.get("install_required") and result.get("install_hint"):
+            msg = f"{msg}\n  install: {result['install_hint']}"
+        if not quiet:
+            print(msg, file=sys.stderr)
+        return 1
+    if not quiet:
+        print(f"launched {result['name']} in tmux session {result['session']}")
+    return 0
 
 
 def _parse_work(argv: list[str]) -> argparse.Namespace:
@@ -464,6 +497,10 @@ def cmd_agent(args: argparse.Namespace) -> int:
     if mode == "work":
         ns = _parse_work(rest)
         return _run_work(ns, json_output=args.json, quiet=args.quiet)
+
+    if mode == "launch":
+        ns = _parse_launch(rest)
+        return _run_launch(ns, json_output=args.json, quiet=args.quiet)
 
     run = _parse_run(mode, rest)
     agent = agent_store.get_agent(mode)

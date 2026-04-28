@@ -23,6 +23,7 @@ from urllib.parse import ParseResult, parse_qs
 
 from agent import (
     budgets as agent_budgets,
+    cli_hooks as agent_cli_hooks,
     cli_launch as agent_cli_launch,
     cli_registry as agent_cli_registry,
     conductor as agent_conductor,
@@ -552,6 +553,32 @@ def _h_agent_work_stop(handler, _parsed: ParseResult, body: dict) -> None:
     handler._send_json({"ok": True, "stop_requested": True})
 
 
+def _h_agent_cli_install_hooks(handler, _parsed: ParseResult, body: dict) -> None:
+    """POST /api/agent-cli/install-hooks — write status hooks into the agent's
+    settings.json. Idempotent."""
+    if not handler._check_unlock():
+        return
+    name = (body.get("name") or "").strip().lower()
+    if not name:
+        handler._send_json({"ok": False, "error": "missing 'name'"}, status=400)
+        return
+    result = agent_cli_hooks.install(name)
+    handler._send_json(result, status=200 if result.get("ok") else 400)
+
+
+def _h_agent_cli_uninstall_hooks(handler, _parsed: ParseResult, body: dict) -> None:
+    """POST /api/agent-cli/uninstall-hooks — strip our hook entries while
+    preserving any user-defined hooks alongside."""
+    if not handler._check_unlock():
+        return
+    name = (body.get("name") or "").strip().lower()
+    if not name:
+        handler._send_json({"ok": False, "error": "missing 'name'"}, status=400)
+        return
+    result = agent_cli_hooks.uninstall(name)
+    handler._send_json(result, status=200 if result.get("ok") else 400)
+
+
 def _h_agent_cli_launch(handler, _parsed: ParseResult, body: dict) -> None:
     """POST /api/agent-cli/launch — spawn a CLI agent in a new tmux session."""
     if not handler._check_unlock():
@@ -613,5 +640,7 @@ def register() -> Registration:
         "/api/agent-conversation": _h_agent_conversation_open,
         "/api/agent-conversation-fork": _h_agent_conversation_fork,
         "/api/agent-cli/launch": _h_agent_cli_launch,
+        "/api/agent-cli/install-hooks": _h_agent_cli_install_hooks,
+        "/api/agent-cli/uninstall-hooks": _h_agent_cli_uninstall_hooks,
     })
     return reg

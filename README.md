@@ -22,7 +22,8 @@ shouldn't be. If you do want agents, this is what you want.
 - `ui_blocks.html` — agent HTML slots (Agent Settings config card,
   Agents / Runs / Tasks sections, transcript + workflow modals)
   that core's template dropins into its `<!--slot:name-->` markers.
-- `static/` — agent-only JS (`agents.js`, `runs.js`, `tasks.js`).
+- `static/` — agent-only JS (`agents.js`, `runs.js`, `tasks.js`,
+  `cli-agents.js`).
 - `startup.py` — scheduler lifecycle hooked into core via the
   extension loader protocol.
 - `manifest.json` — what core reads to wire everything up.
@@ -75,6 +76,40 @@ this extension keeps working. When it doesn't, the version pin in
 
 This is the one file to touch when a core API changes. Any
 `from lib.something import X` elsewhere in the tree is a bug.
+
+## Two agent surfaces
+
+This extension exposes two distinct ways to drive an agent. Both show up
+in the dashboard's Agents card and share its tmux plumbing.
+
+- **Wire-API agents** call an LLM endpoint directly from the extension
+  process (`agent/providers.py`). Use these when you want the
+  conductor / scheduler / tool registry / REPL flow. Catalog lives in
+  `agent/store.py` (sonnet, opus, gpt, kimi, minimax).
+- **CLI agents** are external binaries — Claude Code, OpenAI Codex,
+  OpenCode, Mistral Vibe, Google Gemini, Cursor, GitHub Copilot, Pi,
+  Factory Droid, settl — spawned in a fresh tmux session. The binary
+  talks to its own backend; the extension just supervises status. Use
+  the **Launch CLI Agent** card or `tb agent launch <name>` to start
+  one. Status flows from settings.json hooks where supported, falling
+  back to per-CLI tmux pane parsing.
+
+| Name      | Binary    | Hooks?    | Yolo flag / env                              |
+|-----------|-----------|-----------|----------------------------------------------|
+| claude    | claude    | yes       | `--dangerously-skip-permissions`             |
+| opencode  | opencode  | -         | `OPENCODE_PERMISSION='{"*":"allow"}'`        |
+| codex     | codex     | -         | `--dangerously-bypass-approvals-and-sandbox` |
+| vibe      | vibe      | -         | `--agent auto-approve`                       |
+| gemini    | gemini    | yes       | `--approval-mode yolo`                       |
+| cursor    | agent     | yes       | `--yolo`                                     |
+| copilot   | copilot   | -         | `--yolo`                                     |
+| pi        | pi        | -         | (always yolo)                                |
+| droid     | droid     | -         | `--skip-permissions-unsafe`                  |
+| settl     | settl     | TOML only | (always yolo)                                |
+
+Add or override entries by writing
+`~/.tmux-browse/agent-cli-registry.json` — same merge model as
+`agent-catalog.json` for wire-API agents.
 
 ## Security note
 

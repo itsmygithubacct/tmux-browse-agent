@@ -134,6 +134,131 @@ class CodexStatusTests(unittest.TestCase):
         self.assertEqual(cli_detect.detect_codex_status("random output text"), "idle")
 
 
+class VibeStatusTests(unittest.TestCase):
+    """Vibe is unusual: Textual TUI can render text vertically (one char
+    per line). Detectors must reconstruct words by joining recent lines."""
+
+    def test_running_via_spinner(self):
+        self.assertEqual(cli_detect.detect_vibe_status("processing ⠋"), "running")
+
+    def test_running_via_activity_word(self):
+        self.assertEqual(cli_detect.detect_vibe_status("Reading file"), "running")
+        self.assertEqual(cli_detect.detect_vibe_status("Writing changes"), "running")
+
+    def test_running_via_vertical_text(self):
+        # Textual rendering of "Running bash"
+        vertical = "⠋\nR\nu\nn\nn\ni\nn\ng\nb\na\ns\nh\n…"
+        self.assertEqual(cli_detect.detect_vibe_status(vertical), "running")
+
+    def test_running_via_ellipsis(self):
+        self.assertEqual(cli_detect.detect_vibe_status("Loading..."), "running")
+
+    def test_waiting_via_navigation_hints(self):
+        self.assertEqual(
+            cli_detect.detect_vibe_status("↑↓ navigate  Enter select  ESC reject"),
+            "waiting",
+        )
+
+    def test_idle(self):
+        self.assertEqual(cli_detect.detect_vibe_status("file saved"), "idle")
+
+
+class GeminiStatusTests(unittest.TestCase):
+
+    def test_running(self):
+        self.assertEqual(
+            cli_detect.detect_gemini_status("processing\nesc to interrupt"),
+            "running",
+        )
+        self.assertEqual(cli_detect.detect_gemini_status("generating ⠋"), "running")
+
+    def test_waiting(self):
+        self.assertEqual(
+            cli_detect.detect_gemini_status("run this command? (y/n)"),
+            "waiting",
+        )
+        self.assertEqual(cli_detect.detect_gemini_status("ready\n>"), "waiting")
+
+    def test_idle(self):
+        self.assertEqual(cli_detect.detect_gemini_status("file saved"), "idle")
+
+
+class CursorStatusTests(unittest.TestCase):
+
+    def test_stub_returns_idle(self):
+        # Cursor uses hook-based detection; the content stub stays idle.
+        self.assertEqual(cli_detect.detect_cursor_status("anything"), "idle")
+        self.assertEqual(cli_detect.detect_cursor_status("esc to interrupt"), "idle")
+
+
+class CopilotStatusTests(unittest.TestCase):
+
+    def test_running(self):
+        self.assertEqual(
+            cli_detect.detect_copilot_status("Thinking about your request"),
+            "running",
+        )
+        self.assertEqual(cli_detect.detect_copilot_status("loading ⠹"), "running")
+
+    def test_waiting(self):
+        self.assertEqual(
+            cli_detect.detect_copilot_status("Allow this tool to run?"),
+            "waiting",
+        )
+        self.assertEqual(cli_detect.detect_copilot_status("done\ncopilot>"), "waiting")
+
+    def test_idle(self):
+        self.assertEqual(cli_detect.detect_copilot_status("random output"), "idle")
+
+
+class PiStatusTests(unittest.TestCase):
+    """Pi auto-approves everything — only running vs waiting/idle distinctions."""
+
+    def test_running(self):
+        self.assertEqual(cli_detect.detect_pi_status("generating ⠋"), "running")
+        self.assertEqual(cli_detect.detect_pi_status("thinking about code"), "running")
+
+    def test_prompt_takes_priority_over_lingering_activity(self):
+        # "reading" lingers in scrollback after the agent finishes; the
+        # prompt cursor near the bottom must still register as waiting.
+        self.assertEqual(
+            cli_detect.detect_pi_status("reading config.toml\nDone.\n>"),
+            "waiting",
+        )
+
+    def test_waiting_via_pi_prompt(self):
+        self.assertEqual(cli_detect.detect_pi_status("complete\npi>"), "waiting")
+
+    def test_idle(self):
+        self.assertEqual(cli_detect.detect_pi_status("file saved"), "idle")
+
+
+class DroidStatusTests(unittest.TestCase):
+
+    def test_running(self):
+        self.assertEqual(
+            cli_detect.detect_droid_status("thinking about your request"),
+            "running",
+        )
+        self.assertEqual(cli_detect.detect_droid_status("executing command"), "running")
+
+    def test_waiting(self):
+        self.assertEqual(
+            cli_detect.detect_droid_status("execute this action? [y/n]"),
+            "waiting",
+        )
+        self.assertEqual(cli_detect.detect_droid_status("ready\ndroid>"), "waiting")
+
+    def test_idle(self):
+        self.assertEqual(cli_detect.detect_droid_status("random output"), "idle")
+
+
+class SettlStatusTests(unittest.TestCase):
+
+    def test_stub_returns_idle(self):
+        self.assertEqual(cli_detect.detect_settl_status("anything"), "idle")
+
+
 class StripAnsiTests(unittest.TestCase):
 
     def test_removes_csi_color(self):

@@ -107,6 +107,192 @@ def detect_opencode_status(raw_content: str) -> Status:
     return "idle"
 
 
+def detect_vibe_status(raw_content: str) -> Status:
+    """Vibe (Mistral) renders via Textual TUI which can lay text vertically
+    (one char per line) — joining recent single-char lines reconstructs words
+    so substring matching still works."""
+    content = raw_content.lower()
+    lines = content.splitlines()
+    non_empty = [ln for ln in lines if ln.strip()]
+    last_lines = "\n".join(non_empty[-30:])
+    recent_text = "".join(ln.strip() for ln in non_empty[-50:])
+    recent_lower = recent_text.lower()
+
+    # WAITING — navigation hints, tool warning, approval options.
+    if (
+        "↑↓ navigate" in last_lines
+        or "enter select" in last_lines
+        or "esc reject" in last_lines
+    ):
+        return "waiting"
+    raw_last = "\n".join(non_empty[-30:])  # case-preserving for symbols
+    if "⚠" in raw_last and "command" in last_lines:
+        return "waiting"
+    approval_options = (
+        "yes and always allow", "no and tell the agent",
+        "› 1.", "› 2.", "› 3.",
+    )
+    if any(opt in last_lines for opt in approval_options):
+        return "waiting"
+    for line in lines:
+        trimmed = line.strip()
+        if trimmed.startswith("›") and len(trimmed) > 2:
+            return "waiting"
+
+    # RUNNING — spinners (anywhere) + activity indicators (recent text).
+    if any(s in recent_text for s in _SPINNER_CHARS):
+        return "running"
+    activity = (
+        "running", "reading", "writing", "executing",
+        "processing", "generating", "thinking",
+    )
+    if any(a in recent_lower for a in activity):
+        return "running"
+    if recent_text.endswith("…") or recent_text.endswith("..."):
+        return "running"
+
+    return "idle"
+
+
+def detect_gemini_status(raw_content: str) -> Status:
+    content = raw_content.lower()
+    lines = content.splitlines()
+    non_empty = [ln for ln in lines if ln.strip()]
+    last_lines = "\n".join(non_empty[-30:])
+
+    if "esc to interrupt" in last_lines or "ctrl+c to interrupt" in last_lines:
+        return "running"
+    for line in lines:
+        if any(s in line for s in _SPINNER_CHARS):
+            return "running"
+
+    approval_prompts = (
+        "(y/n)", "[y/n]", "allow", "approve", "execute?",
+        "enter to select", "esc to cancel",
+    )
+    if any(p in last_lines for p in approval_prompts):
+        return "waiting"
+
+    for line in non_empty[-10:][::-1]:
+        clean = strip_ansi(line).strip()
+        if clean in (">", "> "):
+            return "waiting"
+
+    return "idle"
+
+
+def detect_cursor_status(_content: str) -> Status:
+    """Cursor CLI uses hook-based detection (same JSON shape as Claude Code)."""
+    return "idle"
+
+
+def detect_copilot_status(raw_content: str) -> Status:
+    content = raw_content.lower()
+    lines = content.splitlines()
+    non_empty = [ln for ln in lines if ln.strip()]
+    last_lines = "\n".join(non_empty[-30:])
+
+    for line in lines:
+        if any(s in line for s in _SPINNER_CHARS):
+            return "running"
+    running_markers = (
+        "thinking", "working", "esc to interrupt", "ctrl+c to interrupt",
+    )
+    if any(m in last_lines for m in running_markers):
+        return "running"
+
+    approval_prompts = (
+        "approve", "allow", "(y/n)", "[y/n]",
+        "continue?", "run command?", "allow this tool", "approve for the rest",
+    )
+    if any(p in last_lines for p in approval_prompts):
+        return "waiting"
+    if "enter to select" in last_lines or "esc to cancel" in last_lines:
+        return "waiting"
+
+    for line in non_empty[-10:][::-1]:
+        clean = strip_ansi(line).strip()
+        if clean in (">", "> ", "copilot>"):
+            return "waiting"
+        if clean.startswith("> ") and "esc" not in clean and len(clean) < 100:
+            return "waiting"
+
+    return "idle"
+
+
+def detect_pi_status(raw_content: str) -> Status:
+    """Pi auto-approves all tool use, so we only distinguish running vs
+    waiting-for-input (no approval-gate state). The prompt cursor takes
+    priority over activity words because words like ``reading`` can linger
+    in scrollback after the agent finishes and shows a prompt."""
+    content = raw_content.lower()
+    lines = content.splitlines()
+    non_empty = [ln for ln in lines if ln.strip()]
+    last_lines = "\n".join(non_empty[-30:])
+
+    for line in lines:
+        if any(s in line for s in _SPINNER_CHARS):
+            return "running"
+    if "esc to interrupt" in last_lines or "ctrl+c to interrupt" in last_lines:
+        return "running"
+
+    # Prompt cursor first (priority over activity words in scrollback).
+    for line in non_empty[-5:][::-1]:
+        clean = strip_ansi(line).strip()
+        if clean in (">", "> ", "pi>"):
+            return "waiting"
+        if clean.startswith("> ") and "esc" not in clean and len(clean) < 100:
+            return "waiting"
+
+    activity = ("thinking", "working", "reading", "writing", "executing")
+    if any(a in last_lines for a in activity):
+        return "running"
+
+    return "idle"
+
+
+def detect_droid_status(raw_content: str) -> Status:
+    content = raw_content.lower()
+    lines = content.splitlines()
+    non_empty = [ln for ln in lines if ln.strip()]
+    last_lines = "\n".join(non_empty[-30:])
+
+    for line in lines:
+        if any(s in line for s in _SPINNER_CHARS):
+            return "running"
+    running_markers = (
+        "esc to interrupt", "ctrl+c to interrupt",
+        "thinking", "working", "executing",
+    )
+    if any(m in last_lines for m in running_markers):
+        return "running"
+
+    approval_prompts = (
+        "approve", "allow", "(y/n)", "[y/n]",
+        "continue?", "proceed?", "execute?",
+    )
+    if any(p in last_lines for p in approval_prompts):
+        return "waiting"
+    if "enter to select" in last_lines or "esc to cancel" in last_lines:
+        return "waiting"
+
+    for line in non_empty[-10:][::-1]:
+        clean = strip_ansi(line).strip()
+        if clean in (">", "> ", "droid>"):
+            return "waiting"
+        if clean.startswith("> ") and "esc" not in clean and len(clean) < 100:
+            return "waiting"
+
+    return "idle"
+
+
+def detect_settl_status(_content: str) -> Status:
+    """settl uses TOML-based hooks instead of a JSON settings file. We
+    don't ship a TOML installer in K3, so this stub returns idle and the
+    operator wires the hooks manually if they want them. Harmless default."""
+    return "idle"
+
+
 def detect_codex_status(raw_content: str) -> Status:
     content = raw_content.lower()
     lines = content.splitlines()
@@ -160,6 +346,13 @@ _DETECTORS = {
     "claude": detect_claude_status,
     "opencode": detect_opencode_status,
     "codex": detect_codex_status,
+    "vibe": detect_vibe_status,
+    "gemini": detect_gemini_status,
+    "agent": detect_cursor_status,  # cursor's binary is "agent"
+    "copilot": detect_copilot_status,
+    "pi": detect_pi_status,
+    "droid": detect_droid_status,
+    "settl": detect_settl_status,
 }
 
 

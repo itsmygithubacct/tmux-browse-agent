@@ -125,6 +125,91 @@ _BUILTIN_REGISTRY: tuple[CliAgentDef, ...] = (
         set_default_command=True,
         install_hint="npm install -g @openai/codex",
     ),
+    CliAgentDef(
+        name="vibe",
+        binary="vibe",
+        label="Mistral Vibe",
+        aliases=("mistral-vibe",),
+        # Vibe doesn't show up via `which` reliably; probe via --version.
+        detection_arg="--version",
+        yolo=("flag", "--agent auto-approve"),
+        detect_status=cli_detect.detect_vibe_status,
+        install_hint="pip install mistral-vibe",
+    ),
+    CliAgentDef(
+        name="gemini",
+        binary="gemini",
+        label="Google Gemini",
+        yolo=("flag", "--approval-mode yolo"),
+        detect_status=cli_detect.detect_gemini_status,
+        hooks=HooksConfig(
+            settings_rel_path=".gemini/settings.json",
+            events=(
+                HookEvent(name="BeforeTool", status="running"),
+                HookEvent(name="BeforeAgent", status="running"),
+                HookEvent(name="AfterAgent", status="idle"),
+                HookEvent(name="Notification", matcher="ToolPermission", status="waiting"),
+            ),
+        ),
+        install_hint="npm install -g @google/gemini-cli",
+    ),
+    CliAgentDef(
+        name="cursor",
+        # Cursor's CLI ships under `agent`, not `cursor`. Aliasing keeps the
+        # canonical name brand-aligned while detection/spawn use the binary.
+        binary="agent",
+        label="Cursor CLI",
+        aliases=("agent",),
+        yolo=("flag", "--yolo"),
+        detect_status=cli_detect.detect_cursor_status,
+        container_env=(("CURSOR_CONFIG_DIR", "/root/.cursor"),),
+        hooks=HooksConfig(
+            settings_rel_path=".cursor/settings.json",
+            events=_CLAUDE_CURSOR_HOOK_EVENTS,
+        ),
+        install_hint="see https://docs.cursor.com/cli",
+    ),
+    CliAgentDef(
+        name="copilot",
+        binary="copilot",
+        label="GitHub Copilot",
+        aliases=("github-copilot",),
+        yolo=("flag", "--yolo"),
+        detect_status=cli_detect.detect_copilot_status,
+        container_env=(("COPILOT_CONFIG_DIR", "/root/.copilot"),),
+        install_hint="see https://docs.github.com/en/copilot/github-copilot-in-the-cli",
+    ),
+    CliAgentDef(
+        name="pi",
+        binary="pi",
+        label="Pi Coding Agent",
+        # Pi auto-approves everything; "always" yolo means there's no flag
+        # or env to set, the binary is YOLO by default.
+        yolo=("always", ""),
+        detect_status=cli_detect.detect_pi_status,
+        container_env=(("PI_CODING_AGENT_DIR", "/root/.pi/agent"),),
+        install_hint="npm install -g @mariozechner/pi-coding-agent",
+    ),
+    CliAgentDef(
+        name="droid",
+        binary="droid",
+        label="Factory Droid",
+        aliases=("factory-droid",),
+        yolo=("flag", "--skip-permissions-unsafe"),
+        detect_status=cli_detect.detect_droid_status,
+        install_hint="npm install -g droid",
+    ),
+    CliAgentDef(
+        name="settl",
+        binary="settl",
+        label="settl",
+        aliases=("settlers", "catan"),
+        yolo=("always", ""),
+        detect_status=cli_detect.detect_settl_status,
+        # host_only because settl has its own runtime that doesn't sandbox cleanly.
+        host_only=True,
+        install_hint="brew install --cask mozilla-ai/tap/settl",
+    ),
 )
 
 

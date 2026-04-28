@@ -59,6 +59,32 @@ class RegistryShapeTests(unittest.TestCase):
         self.assertIn("opencode", names)
         self.assertIn("codex", names)
 
+    def test_full_registry_after_k5(self):
+        # K5 brings the registry up to AoE's 10 entries.
+        expected = {
+            "claude", "opencode", "codex",
+            "vibe", "gemini", "cursor", "copilot", "pi", "droid", "settl",
+        }
+        self.assertEqual(set(cli_registry.names()), expected)
+
+    def test_cursor_binary_is_agent(self):
+        # Cursor's brand-aligned name is `cursor` but its on-disk binary
+        # is `agent`. Aliasing keeps both lookups working.
+        cursor = cli_registry.find("cursor")
+        self.assertEqual(cursor.binary, "agent")
+        self.assertEqual(cli_registry.find("agent").name, "cursor")
+
+    def test_settl_is_host_only(self):
+        # settl can't run in the docker sandbox, so the launch dialog will
+        # eventually skip sandbox/worktree options for it.
+        self.assertTrue(cli_registry.find("settl").host_only)
+
+    def test_hooks_configured_on_expected_agents(self):
+        # Hook-based status detection: claude, gemini, cursor.
+        # The other CLIs use content parsing only.
+        with_hooks = {a.name for a in cli_registry._BUILTIN_REGISTRY if a.hooks is not None}
+        self.assertEqual(with_hooks, {"claude", "gemini", "cursor"})
+
 
 class FindTests(unittest.TestCase):
 
@@ -127,8 +153,8 @@ class OverrideMergeTests(_IsolatedStateMixin, unittest.TestCase):
         path = self._dir / "agent-cli-registry.json"
         path.write_text("not json at all", encoding="utf-8")
         # Should not raise; just falls back to built-ins.
-        names = cli_registry.names()
-        self.assertEqual(set(names), {"claude", "opencode", "codex"})
+        builtin_names = {a.name for a in cli_registry._BUILTIN_REGISTRY}
+        self.assertEqual(set(cli_registry.names()), builtin_names)
 
 
 if __name__ == "__main__":

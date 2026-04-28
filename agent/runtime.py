@@ -25,11 +25,32 @@ def conversation_session_name(agent_name: str) -> str:
 
 
 def agent_name_from_session(session_name: str) -> str | None:
+    """Resolve a session name back to an agent name.
+
+    Handles two prefixes:
+      - ``agent-repl-<name>`` (wire-API REPL sessions)
+      - ``agent-cli-<binary>-<uid>`` (CLI agents spawned via ``cli_launch``)
+
+    For CLI sessions the canonical registry name is returned (which usually
+    matches the binary, but ``cursor`` is registered under ``cursor`` while
+    its binary is ``agent``).
+    """
     name = (session_name or "").strip()
-    if not name.startswith(CONVERSATION_PREFIX):
+    if name.startswith(CONVERSATION_PREFIX):
+        agent_name = name[len(CONVERSATION_PREFIX):].strip().lower()
+        return agent_name or None
+    # CLI agents: parse the session-name suffix and look up the registry.
+    from . import cli_launch, cli_registry
+    parsed = cli_launch.parse_session_name(name)
+    if parsed is None:
         return None
-    agent_name = name[len(CONVERSATION_PREFIX):].strip().lower()
-    return agent_name or None
+    binary, _instance_id = parsed
+    # Find the registry entry whose binary matches; fall back to the binary
+    # itself so unknown CLIs are still attributable.
+    for agent in cli_registry.load_registry():
+        if agent.binary == binary:
+            return agent.name
+    return binary or None
 
 
 def get_or_create_conversation(agent_name: str) -> str:

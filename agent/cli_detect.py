@@ -1,4 +1,4 @@
-"""Per-CLI status detection from tmux pane content.
+"""Per-CLI status detection from tmux pane content + hook-file lookup.
 
 Each detector takes raw pane bytes (with ANSI codes already in place) and
 returns one of ``"running" | "waiting" | "idle"``. The dispatcher
@@ -8,11 +8,17 @@ substring matches survive ``capture-pane -e`` colouring.
 Hook-based CLIs (Claude Code, Cursor) ship stub detectors that always
 return ``"idle"``; the real status comes from a file written by the
 agent's own hooks (see ``cli_hooks.py``, K3).
+
+``detect_for_session`` is the public entry for live sessions: given a
+``agent-cli-<binary>-<uid>`` session name it prefers the hook-file at
+``/tmp/tba-hooks/<uid>/status`` (authoritative) and falls back to
+``capture-pane`` + the per-CLI detector.
 """
 
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Literal
 
 Status = Literal["running", "idle", "waiting", "error"]
@@ -165,3 +171,67 @@ def detect_status_from_content(content: str, name: str) -> Status:
     if detector is None:
         return "idle"
     return detector(strip_ansi(content))
+
+
+# Set in __init__-time wiring; held as a module attribute so tests can patch
+# without importing cli_launch (which would create a real circular dep).
+HOOKS_ROOT = Path("/tmp/tba-hooks")
+
+
+def _read_hook_status(instance_id: str) -> Status | None:
+    """Return the status string written by the CLI's settings.json hook,
+    or None if no file exists or its contents aren't a known status."""
+    if not instance_id:
+        return None
+    path = HOOKS_ROOT / instance_id / "status"
+    try:
+        raw = path.read_text(encoding="utf-8").strip().lower()
+    except (OSError, ValueError):
+        return None
+    if raw in ("running", "idle", "waiting", "error"):
+        return raw  # type: ignore[return-value]
+    return None
+
+
+def detect_for_session(session_name: str, *, capture: callable | None = None) -> Status:
+    """Resolve a status for a ``agent-cli-<binary>-<uid>`` tmux session.
+
+    Hook-file wins because it's authoritative (the CLI itself wrote it).
+    Pane-parse is a fallback for CLIs without a hooks contract or for the
+    brief gap before the first hook fires. Unknown sessions return idle.
+
+    ``capture`` lets callers (mostly tests) override the pane-fetch path.
+    By default it uses ``lib.sessions.capture_target`` against window 0.
+    """
+    # Imported lazily to avoid a hard dep at import time when callers only
+    # use the pane-parse half (e.g. unit tests of detectors alone).
+    from . import cli_launch  # local import — already ours, no cycle risk
+
+    parsed = cli_launch.parse_session_name(session_name)
+    if parsed is None:
+        return "idle"
+    binary, instance_id = parsed
+
+    status = _read_hook_status(instance_id)
+    if status is not None:
+        return status
+
+    if capture is None:
+        try:
+            from lib import sessions as _sessions
+            ok, content = _sessions.capture_target(
+                _sessions.Target(session=session_name, window=None, pane=None),
+                lines=200,
+                ansi=False,
+            )
+            if not ok:
+                return "idle"
+        except Exception:
+            return "idle"
+    else:
+        try:
+            content = capture(session_name)
+        except Exception:
+            return "idle"
+
+    return detect_status_from_content(content, binary)
